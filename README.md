@@ -29,7 +29,31 @@ The host adaptation patches are provided in `integrations/`. Version 0.1.3 suppl
 
 ## Install and open
 
-Install **使用统计** from the plugin store after configuring the source below, then enable it in Plugin Management. Alternatively, verify the ZIP against `releases/0.1.3/checksums.txt`, extract its root `cpa-usage-statistics.so`, and place it in the host plugin directory.
+This repository is public. HTTPS cloning and package downloads require no GitHub token or SSH key. These instructions use the prebuilt Linux amd64 package, so Go and Node.js are not needed. Install `git`, `unzip`, and `sha256sum` first.
+
+### 1. Clone and extract
+
+```bash
+git clone https://github.com/Nerva05251228/cpa-usage-statistics.git
+cd cpa-usage-statistics/releases/0.1.3
+sha256sum -c checksums.txt
+# Continue only after verification reports OK.
+unzip cpa-usage-statistics_0.1.3_linux_amd64.zip -d unpacked
+```
+
+If already cloned, enter `releases/0.1.3` from the repository root and run verification and extraction.
+
+### 2. Install the library
+
+Replace `/path/to/CLIProxyAPI` with the host working directory. Adjust the destination if you use a different `plugins.dir`. Before replacing an existing library, stop CPA and back up the old file. Do not overwrite a loaded `.so` in place.
+
+```bash
+CPA_DIR=/path/to/CLIProxyAPI
+install -Dm755 unpacked/cpa-usage-statistics.so \
+  "$CPA_DIR/plugins/linux/amd64/cpa-usage-statistics.so"
+```
+
+### 3. Configure and enable
 
 Merge this into the host configuration, preserving existing plugin entries. Choose a persistent `data_dir` writable by the host service account:
 
@@ -44,7 +68,15 @@ plugins:
       retention_days: 0
 ```
 
-Reload the configuration or restart according to your host's plugin loading procedure, then refresh the management center. Open **使用统计** in the left sidebar. Make a model request and refresh the page to confirm collection. Disabling the plugin hides its sidebar entry.
+Start or restart CPA, then refresh the management center. For PM2 deployments with a process named `cli-proxy-api`:
+
+```bash
+pm2 restart cli-proxy-api
+```
+
+Use your deployment's service manager otherwise. Open **使用统计** in the left sidebar. Make a model request and refresh the page to confirm collection. Use **Show columns** in request details to hide columns; this browser remembers the selection. Disabling the plugin hides its sidebar entry.
+
+If the sidebar entry is missing, check the global plugin switch, plugin activation, installation path, and host loading logs. If the page cannot connect to the management center, confirm the backend and panel include the [host integrations](integrations/README.md) and open the page from the sidebar rather than its static resource URL.
 
 | Setting | Default | Behavior |
 | --- | --- | --- |
@@ -104,29 +136,13 @@ registry.json
 
 The ZIP contains one root-level library plus documentation, build metadata, and license notices. Checksums come from the actual ZIP; the registry advertises only the packaged Linux amd64 platform.
 
-## GitHub distribution and plugin store
+## GitHub distribution
 
 The plugin has its own repository, `Nerva05251228/cpa-usage-statistics`; its source, build scripts and registry live at the repository root. Source, integration patches, ZIP, checksums, and registry are versioned under the immutable `v0.1.3` Git tag. This uses the store's schema-v2 `direct` installation mode and does not require the GitHub Release API.
 
-Add this extra store source:
+**This repository is now public.** Follow the manual installation above; no plugin-store configuration or download credentials are required. Public source and packages do not change runtime API authentication: statistics still require CPA management authentication.
 
-```text
-https://raw.githubusercontent.com/Nerva05251228/cpa-usage-statistics/v0.1.3/registry.json
-```
-
-Merge the following into the host's `plugins` configuration:
-
-```yaml
-store-sources:
-  - "https://raw.githubusercontent.com/Nerva05251228/cpa-usage-statistics/v0.1.3/registry.json"
-store-auth:
-  - match: "https://raw.githubusercontent.com/Nerva05251228/cpa-usage-statistics/"
-    apply-to: ["registry", "artifact"]
-    type: github-token
-    token-env: "CPA_PLUGIN_STORE_TOKEN"
-```
-
-**This repository is private.** Git SSH authorization permits cloning/pushing but does not authenticate plugin-store HTTPS downloads. Automatic store installation requires `CPA_PLUGIN_STORE_TOKEN`, with read access to repository contents, in the host process environment. Keep it out of source, registry files, and URLs. Without an HTTP token, retrieve the committed ZIP through authorized Git SSH and install it manually.
+Use the README on `main` for current installation instructions. The published `v0.1.3` tag and ZIP remain unchanged; their bundled documentation and registry retain the private-repository description from publication time. This does not prevent public downloads or manual installation.
 
 Use `--repository`, `--ref`, and `--plugin-path` when generating a registry for another location. Use `--public` only for a publicly readable repository. For an update, create a new version/tag and checksums, then update the store source; do not replace published tag contents.
 

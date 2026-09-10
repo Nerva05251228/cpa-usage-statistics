@@ -30,6 +30,6 @@ The original package is archived in `Nerva05251228/CPA` under
 - `store-install.json`: authenticated loopback registry installation of the final v0.1.0 ZIP, rejection of an incorrect checksum, and automatic installation/activation.
 - Initial validation also passed plugin backend 18 tests and race checks, targeted host Go tests, and host compilation.
 
-The store fixture verifies installer authentication, not private GitHub access. Private GitHub HTTPS download credentials must be configured separately; see the main README.
+The historical store fixture verifies installer authentication, not GitHub repository visibility. The standalone plugin repository is now public; HTTPS cloning and manual package downloads require no GitHub credentials. See the current main README for installation instructions.
 
 No raw client or management Keys, production configuration, databases, or upstream responses are published. Screenshots show the deployed UI; credentials are masked or represented by stable fingerprints.

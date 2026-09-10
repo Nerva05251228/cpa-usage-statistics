@@ -27,7 +27,31 @@
 
 ## 安装并在左侧打开
 
-已配置下文插件商店源时，可在「插件商店」安装「使用统计」，随后到「插件管理」配置并启用。也可从本仓库的 `releases/0.1.3/` 取得 ZIP，核对 `checksums.txt`，将根目录的 `cpa-usage-statistics.so` 放入宿主的插件目录。
+本仓库已公开，HTTPS 拉取和下载安装包不需要 GitHub Token 或 SSH key。以下使用仓库中已编译的 Linux amd64 安装包，无需安装 Go、Node.js 或自行编译；需要 `git`、`unzip` 和 `sha256sum`。
+
+### 1. 拉取并解压安装包
+
+```bash
+git clone https://github.com/Nerva05251228/cpa-usage-statistics.git
+cd cpa-usage-statistics/releases/0.1.3
+sha256sum -c checksums.txt
+# 仅在校验显示 OK 后继续。
+unzip cpa-usage-statistics_0.1.3_linux_amd64.zip -d unpacked
+```
+
+已经拉取仓库时，从仓库根目录进入 `releases/0.1.3`，执行校验和解压即可。
+
+### 2. 安装动态库
+
+将下面的 `/path/to/CLIProxyAPI` 替换为实际 CPA 运行目录；如果修改过 `plugins.dir`，安装位置也应相应调整。覆盖旧动态库前，先停止 CPA 服务并备份旧文件。不要在加载中的 `.so` 上直接覆盖写入。
+
+```bash
+CPA_DIR=/path/to/CLIProxyAPI
+install -Dm755 unpacked/cpa-usage-statistics.so \
+  "$CPA_DIR/plugins/linux/amd64/cpa-usage-statistics.so"
+```
+
+### 3. 配置并启用
 
 在宿主配置文件中合并以下配置。使用现有插件时保留原有 `configs` 条目；`data_dir` 建议填写宿主服务用户可写的持久化绝对路径。
 
@@ -42,7 +66,15 @@ plugins:
       retention_days: 0
 ```
 
-按宿主的加载流程重新加载配置，必要时重启服务，刷新管理中心。左侧新增 **「使用统计」** 后点击即可。发起一次模型调用并在页面刷新，验证统计开始累积。禁用插件后，侧栏入口会隐藏。
+启动或重启 CPA 服务，刷新管理中心。若使用 PM2 且进程名称为 `cli-proxy-api`，可执行：
+
+```bash
+pm2 restart cli-proxy-api
+```
+
+其他部署方式请使用对应的服务管理命令。左侧新增 **「使用统计」** 后点击即可。发起一次模型调用并在页面刷新，验证统计开始累积。「请求事件明细 → 显示列」可隐藏列，浏览器会保存选择。禁用插件后，侧栏入口会隐藏。
+
+如果没有侧栏入口，先检查全局插件开关、该插件启用状态、安装路径和宿主加载日志。如果页面提示无法连接管理中心，确认后端及面板已包含 [宿主适配](integrations/README.md)，并从左侧入口进入，不能直接打开插件静态页面 URL。
 
 | 插件配置 | 默认值 | 说明 |
 | --- | --- | --- |
@@ -108,29 +140,13 @@ registry.json
 
 ZIP 根目录包含唯一一个插件动态库、文档、构建信息和许可证。SHA256 依据实际 ZIP 生成；registry 只声明实际打包的 Linux amd64 平台。
 
-## GitHub 上传与插件商店
+## GitHub 分发
 
 插件独立仓库为 `Nerva05251228/cpa-usage-statistics`，源码、构建脚本与 registry 位于仓库根目录。源码、集成补丁、版本 ZIP、校验和与 registry 一起纳入 Git，使用固定标签 `v0.1.3`。该模式使用商店原生的 schema v2 `direct` 安装，不依赖 GitHub Release API。
 
-默认生成的商店源地址：
+**此仓库现为公开仓库。** 按上文手动安装即可，不需要配置插件商店或下载凭据。公开的是插件源码和安装包，运行中的统计接口仍受 CPA 管理认证保护。
 
-```text
-https://raw.githubusercontent.com/Nerva05251228/cpa-usage-statistics/v0.1.3/registry.json
-```
-
-在 CPA 的额外插件源中添加这个地址，或将以下字段合并到宿主 `plugins` 下：
-
-```yaml
-store-sources:
-  - "https://raw.githubusercontent.com/Nerva05251228/cpa-usage-statistics/v0.1.3/registry.json"
-store-auth:
-  - match: "https://raw.githubusercontent.com/Nerva05251228/cpa-usage-statistics/"
-    apply-to: ["registry", "artifact"]
-    type: github-token
-    token-env: "CPA_PLUGIN_STORE_TOKEN"
-```
-
-**此仓库为私有仓库。** SSH key 可用于 `git clone/push`，不会为插件商店的 HTTPS 下载提供认证。商店自动安装需要为宿主进程设置具有该仓库内容读取权限的 `CPA_PLUGIN_STORE_TOKEN`；将其置于部署环境，不写入源代码、registry 或下载 URL。没有 HTTP token 时，可以通过已授权的 Git SSH 取得已发布 ZIP 后手动安装，不影响插件运行。
+最新安装说明以 `main` 分支 README 为准。已发布的 `v0.1.3` 标签及 ZIP 保持不变，其中的旧文档和 registry 保留发布时的私有仓库描述；这不影响公开下载和手动安装。
 
 发布到不同仓库/标签/路径时，使用生成脚本的 `--repository`、`--ref`、`--plugin-path` 参数。仅在仓库确实公开时使用 `--public`。更新后应新增版本和标签，重新生成校验和，并更新商店源，不覆盖已经发布标签指向的内容。
 
