@@ -1,0 +1,20 @@
+{
+  "registered": true,
+  "menu": "使用统计",
+  "authentication_checked": true,
+  "real_calls": 3,
+  "total_records": 6,
+  "total_tokens": 1720,
+  "canonical_tokens": true,
+  "billing_persisted": true,
+  "export_import_idempotent": true,
+  "health": {
+    "dropped_records": 0,
+    "last_error": "",
+    "queue_depth": 0,
+    "retention_days": 90,
+    "status": "ok",
+    "total_requests": 6,
+    "version": "0.1.0"
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "name": "cpa-usage-statistics-web",
+  "version": "0.1.3",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "test": "vitest run",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "chart.js": "^4.5.1",
+    "i18next": "^25.7.1",
+    "react": "^19.2.1",
+    "react-chartjs-2": "^5.3.1",
+    "react-dom": "^19.2.1",
+    "react-i18next": "^16.4.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.1.1",
+    "sass": "^1.94.2",
+    "typescript": "^5.9.3",
+    "vite": "^7.2.6",
+    "vite-plugin-singlefile": "^2.3.0",
+    "vitest": "^4.1.11"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "CLIProxyAPI": {
+    "base_commit": "7fac6b15bcfe5ea55c18c9eaec8e5b7e6457d974",
+    "patch": "backend-token-accounting.patch",
+    "apply_check": "passed"
+  },
+  "Cli-Proxy-API-Management-Center": {
+    "base_commit": "ed5f1c48e11ba7335f1e8f676f228c280196af85",
+    "patch": "management-plugin-bridge.patch",
+    "apply_check": "passed"
+  }
+}

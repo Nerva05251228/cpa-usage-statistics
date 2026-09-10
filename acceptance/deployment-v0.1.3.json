@@ -1,0 +1,13 @@
+{
+  "version": "0.1.3",
+  "repository": "Nerva05251228/cpa-usage-statistics",
+  "frontend_build": "passed",
+  "native_plugin_build": "passed",
+  "deployed": true,
+  "plugin_health": "ok",
+  "tests_run": false,
+  "browser_tests_run": false,
+  "test_policy": "Skipped at user request",
+  "data_directory_preserved": true,
+  "package_sha256": "a7b8abf400d5a6e117fbbaecc7cfb870e79a4fe93500e3484445f02522720795"
+}

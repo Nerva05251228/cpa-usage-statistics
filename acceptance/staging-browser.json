@@ -1,0 +1,10 @@
+{
+  "target": "staging",
+  "menu": "使用统计",
+  "menuVisible": true,
+  "pluginFrameLoaded": true,
+  "dataRequested": true,
+  "credentialNotForwarded": true,
+  "browserErrors": [],
+  "screenshot": "staging-sidebar.png"
+}

@@ -1,0 +1,1 @@
+a7b8abf400d5a6e117fbbaecc7cfb870e79a4fe93500e3484445f02522720795  cpa-usage-statistics_0.1.3_linux_amd64.zip

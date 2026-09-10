@@ -1,0 +1,10 @@
+{
+  "version": "0.1.2",
+  "target": "staging",
+  "existingHistoryMatched": true,
+  "apiDetailsShowConfiguredKeyMasks": true,
+  "requestClientSourcesShowConfiguredKeyMasks": true,
+  "rawClientAndManagementKeysNotForwarded": true,
+  "browserErrors": [],
+  "screenshot": "staging-client-key-labels.png"
+}

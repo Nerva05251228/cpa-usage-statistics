@@ -1,0 +1,9 @@
+{
+  "target": "staging",
+  "from_version": "0.1.1",
+  "to_version": "0.1.2",
+  "restart_upgrade_passed": true,
+  "old_records_retained": true,
+  "before_records": 6,
+  "after_records": 6
+}

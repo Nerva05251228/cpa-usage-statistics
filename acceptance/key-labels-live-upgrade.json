@@ -1,0 +1,9 @@
+{
+  "target": "live",
+  "from_version": "0.1.0",
+  "to_version": "0.1.1",
+  "restart_upgrade_passed": true,
+  "old_records_retained": true,
+  "before_records": 83,
+  "after_records": 83
+}

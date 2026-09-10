@@ -1,0 +1,225 @@
+diff --git a/internal/pluginhost/adapters_usage_translation.go b/internal/pluginhost/adapters_usage_translation.go
+index f610f9e8..5cb5070f 100644
+--- a/internal/pluginhost/adapters_usage_translation.go
++++ b/internal/pluginhost/adapters_usage_translation.go
+@@ -162,6 +162,7 @@ func (a *usageAdapter) HandleUsage(ctx context.Context, record coreusage.Record)
+ 	if sessionID == "" || sessionID == parentSessionID {
+ 		parentSessionID = ""
+ 	}
++	detail := coreusage.EnsureTokenBreakdownForProvider(record.Detail, record.Provider, record.ExecutorType)
+ 	plugin.HandleUsage(ctx, pluginapi.UsageRecord{
+ 		Provider:        record.Provider,
+ 		ExecutorType:    record.ExecutorType,
+@@ -186,13 +187,14 @@ func (a *usageAdapter) HandleUsage(ctx context.Context, record coreusage.Record)
+ 			Body:       record.Fail.Body,
+ 		},
+ 		Detail: pluginapi.UsageDetail{
+-			InputTokens:         record.Detail.InputTokens,
+-			OutputTokens:        record.Detail.OutputTokens,
+-			ReasoningTokens:     record.Detail.ReasoningTokens,
+-			CachedTokens:        record.Detail.CachedTokens,
+-			CacheReadTokens:     record.Detail.CacheReadTokens,
+-			CacheCreationTokens: record.Detail.CacheCreationTokens,
+-			TotalTokens:         record.Detail.TotalTokens,
++			InputTokens:         detail.InputTokens,
++			OutputTokens:        detail.OutputTokens,
++			ReasoningTokens:     detail.ReasoningTokens,
++			CachedTokens:        detail.CachedTokens,
++			CacheReadTokens:     detail.CacheReadTokens,
++			CacheCreationTokens: detail.CacheCreationTokens,
++			TotalTokens:         detail.TotalTokens,
++			TokenBreakdown:      detail.TokenBreakdown,
+ 		},
+ 		ResponseHeaders: cloneHeader(record.ResponseHeaders),
+ 	})
+diff --git a/sdk/pluginapi/types.go b/sdk/pluginapi/types.go
+index bb9515b8..018ff904 100644
+--- a/sdk/pluginapi/types.go
++++ b/sdk/pluginapi/types.go
+@@ -7,6 +7,8 @@ import (
+ 	"net/http"
+ 	"net/url"
+ 	"time"
++
++	coreusage "github.com/router-for-me/CLIProxyAPI/v7/sdk/cliproxy/usage"
+ )
+ 
+ // Plugin is the host-side representation produced from a dynamic plugin registration.
+@@ -1411,6 +1413,9 @@ type UsageFailure struct {
+ 	Body string
+ }
+ 
++// TokenBreakdown is the canonical, non-overlapping token accounting contract.
++type TokenBreakdown = coreusage.TokenBreakdown
++
+ // UsageDetail contains token accounting counters.
+ type UsageDetail struct {
+ 	// InputTokens is the prompt or input token count.
+@@ -1427,4 +1432,8 @@ type UsageDetail struct {
+ 	CacheCreationTokens int64
+ 	// TotalTokens is the total token count.
+ 	TotalTokens int64
++	// TokenBreakdown contains normalized, mutually exclusive token buckets.
++	// Consumers should use these buckets for totals and billing because the
++	// legacy counters above have provider-specific overlap semantics.
++	TokenBreakdown TokenBreakdown
+ }
+diff --git a/sdk/pluginapi/usage_accounting_test.go b/sdk/pluginapi/usage_accounting_test.go
+new file mode 100644
+index 00000000..99a74e35
+--- /dev/null
++++ b/sdk/pluginapi/usage_accounting_test.go
+@@ -0,0 +1,46 @@
++package pluginapi
++
++import (
++	"encoding/json"
++	"testing"
++
++	coreusage "github.com/router-for-me/CLIProxyAPI/v7/sdk/cliproxy/usage"
++)
++
++func TestUsageRecordCanonicalTokenBreakdownWireFormat(t *testing.T) {
++	record := UsageRecord{Detail: UsageDetail{
++		InputTokens: 100, OutputTokens: 30, TotalTokens: 130,
++		TokenBreakdown: coreusage.NewSubsetTokenBreakdown(100, 40, 10, 30, 12, 130),
++	}}
++	wire, errMarshal := json.Marshal(record)
++	if errMarshal != nil {
++		t.Fatal(errMarshal)
++	}
++	var decoded struct {
++		Detail struct {
++			TokenBreakdown json.RawMessage
++		}
++	}
++	if errUnmarshal := json.Unmarshal(wire, &decoded); errUnmarshal != nil {
++		t.Fatal(errUnmarshal)
++	}
++	const want = `{"schema_version":2,"quality":"complete","total_tokens":130,"input":{"total_tokens":100,"uncached_tokens":50,"cache_read_tokens":40,"cache_write_tokens":10},"output":{"total_tokens":30,"non_reasoning_tokens":18,"reasoning_tokens":12},"unclassified_tokens":0}`
++	if string(decoded.Detail.TokenBreakdown) != want {
++		t.Fatalf("Detail.TokenBreakdown = %s, want %s", decoded.Detail.TokenBreakdown, want)
++	}
++
++	// Existing schema-6 consumers can ignore the additive canonical field.
++	var legacy struct {
++		Detail struct {
++			InputTokens  int64
++			OutputTokens int64
++			TotalTokens  int64
++		}
++	}
++	if errUnmarshal := json.Unmarshal(wire, &legacy); errUnmarshal != nil {
++		t.Fatal(errUnmarshal)
++	}
++	if legacy.Detail.InputTokens != 100 || legacy.Detail.OutputTokens != 30 || legacy.Detail.TotalTokens != 130 {
++		t.Fatalf("legacy token counters = %+v", legacy.Detail)
++	}
++}
+diff --git a/internal/pluginhost/adapters_usage_accounting_test.go b/internal/pluginhost/adapters_usage_accounting_test.go
+new file mode 100644
+index 00000000..e4dc6314
+--- /dev/null
++++ b/internal/pluginhost/adapters_usage_accounting_test.go
+@@ -0,0 +1,101 @@
++package pluginhost
++
++import (
++	"context"
++	"testing"
++
++	coreusage "github.com/router-for-me/CLIProxyAPI/v7/sdk/cliproxy/usage"
++	"github.com/router-for-me/CLIProxyAPI/v7/sdk/pluginapi"
++)
++
++func TestUsageAdapterDeliversCanonicalTokenBreakdown(t *testing.T) {
++	for _, tc := range []struct {
++		name         string
++		provider     string
++		executorType string
++		detail       coreusage.Detail
++		want         coreusage.TokenBreakdown
++	}{
++		{
++			name:     "OpenAI cache and reasoning are subsets",
++			provider: "openai",
++			detail: coreusage.Detail{
++				InputTokens: 100, OutputTokens: 30, ReasoningTokens: 12,
++				CacheReadTokens: 40, CacheCreationTokens: 10,
++			},
++			want: coreusage.TokenBreakdown{
++				SchemaVersion: 2, Quality: coreusage.TokenAccountingQualityComplete, TotalTokens: 130,
++				Input:  coreusage.TokenInputBreakdown{TotalTokens: 100, UncachedTokens: 50, CacheReadTokens: 40, CacheWriteTokens: 10},
++				Output: coreusage.TokenOutputBreakdown{TotalTokens: 30, NonReasoningTokens: 18, ReasoningTokens: 12},
++			},
++		},
++		{
++			name:         "Claude executor buckets are independent",
++			provider:     "custom-provider",
++			executorType: "claude",
++			detail: coreusage.Detail{
++				InputTokens: 30, OutputTokens: 5, ReasoningTokens: 2,
++				CacheReadTokens: 7, CacheCreationTokens: 13,
++			},
++			want: coreusage.TokenBreakdown{
++				SchemaVersion: 2, Quality: coreusage.TokenAccountingQualityComplete, TotalTokens: 57,
++				Input:  coreusage.TokenInputBreakdown{TotalTokens: 50, UncachedTokens: 30, CacheReadTokens: 7, CacheWriteTokens: 13},
++				Output: coreusage.TokenOutputBreakdown{TotalTokens: 7, NonReasoningTokens: 5, ReasoningTokens: 2},
++			},
++		},
++		{
++			name:     "unknown provider remains unclassified",
++			provider: "custom-provider",
++			detail: coreusage.Detail{
++				InputTokens: 100, OutputTokens: 30, ReasoningTokens: 12, CacheReadTokens: 40,
++			},
++			want: coreusage.TokenBreakdown{
++				SchemaVersion: 2, Quality: coreusage.TokenAccountingQualityUnclassified,
++				TotalTokens: 130, UnclassifiedTokens: 130,
++			},
++		},
++		{
++			name:     "existing canonical detail survives unknown provider",
++			provider: "custom-provider",
++			detail: coreusage.Detail{
++				TokenBreakdown: coreusage.TokenBreakdown{
++					SchemaVersion: 2, Quality: coreusage.TokenAccountingQualityComplete, TotalTokens: 25,
++					Input:  coreusage.TokenInputBreakdown{TotalTokens: 20, UncachedTokens: 10, CacheReadTokens: 10},
++					Output: coreusage.TokenOutputBreakdown{TotalTokens: 5, NonReasoningTokens: 3, ReasoningTokens: 2},
++				},
++			},
++			want: coreusage.TokenBreakdown{
++				SchemaVersion: 2, Quality: coreusage.TokenAccountingQualityComplete, TotalTokens: 25,
++				Input:  coreusage.TokenInputBreakdown{TotalTokens: 20, UncachedTokens: 10, CacheReadTokens: 10},
++				Output: coreusage.TokenOutputBreakdown{TotalTokens: 5, NonReasoningTokens: 3, ReasoningTokens: 2},
++			},
++		},
++	} {
++		t.Run(tc.name, func(t *testing.T) {
++			var got pluginapi.UsageRecord
++			host := newHostWithRecords(capabilityRecord{
++				id: "usage-accounting",
++				plugin: pluginapi.Plugin{Capabilities: pluginapi.Capabilities{
++					UsagePlugin: usagePluginFunc(func(_ context.Context, record pluginapi.UsageRecord) {
++						got = record
++					}),
++				}},
++			})
++			adapter := &usageAdapter{host: host, pluginID: "usage-accounting"}
++			adapter.HandleUsage(context.Background(), coreusage.Record{
++				Provider: tc.provider, ExecutorType: tc.executorType, Detail: tc.detail,
++			})
++			if got.Detail.TokenBreakdown != tc.want {
++				t.Fatalf("TokenBreakdown = %+v, want %+v", got.Detail.TokenBreakdown, tc.want)
++			}
++			if got.Detail.TotalTokens != tc.want.TotalTokens {
++				t.Fatalf("TotalTokens = %d, want %d", got.Detail.TotalTokens, tc.want.TotalTokens)
++			}
++			if got.Detail.InputTokens != tc.detail.InputTokens || got.Detail.OutputTokens != tc.detail.OutputTokens ||
++				got.Detail.ReasoningTokens != tc.detail.ReasoningTokens || got.Detail.CacheReadTokens != tc.detail.CacheReadTokens ||
++				got.Detail.CacheCreationTokens != tc.detail.CacheCreationTokens {
++				t.Fatalf("legacy counters changed: got %+v, original %+v", got.Detail, tc.detail)
++			}
++		})
++	}
++}

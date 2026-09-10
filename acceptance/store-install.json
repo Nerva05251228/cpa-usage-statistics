@@ -1,0 +1,33 @@
+{
+  "passed": true,
+  "scope": "fresh isolated CPA at loopback:18628; registry/artifact from temporary authenticated loopback fixture",
+  "package_sha256": "2f23b4c874da9dc9e34b05638586f4c9cfe6ce44b8cd2a9f03463c8c08300932",
+  "package_size": 7134040,
+  "remote_github_https_configured": false,
+  "checksum_mismatch_rejected": true,
+  "install_status": "installed",
+  "install_type": "direct",
+  "restart_required": false,
+  "installed_binary_matches_final_zip": true,
+  "menu": "使用统计",
+  "registered": true,
+  "effective_enabled": true,
+  "management_auth_required": true,
+  "static_page_available": true,
+  "health": {
+    "dropped_records": 0,
+    "last_error": "",
+    "queue_depth": 0,
+    "retention_days": 0,
+    "status": "ok",
+    "total_requests": 0,
+    "version": "0.1.0"
+  },
+  "store_manifest_persisted": true,
+  "auth_fixture_requests": {
+    "registry_authenticated": 2,
+    "artifact_authenticated": 2,
+    "unauthorized": 0
+  },
+  "temporary_processes_stopped": true
+}

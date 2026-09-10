@@ -1,0 +1,10 @@
+{
+  "version": "0.1.2",
+  "target": "live",
+  "existingHistoryMatched": true,
+  "apiDetailsShowConfiguredKeyMasks": true,
+  "requestClientSourcesShowConfiguredKeyMasks": true,
+  "rawClientAndManagementKeysNotForwarded": true,
+  "browserErrors": [],
+  "screenshot": "live-client-key-labels.png"
+}

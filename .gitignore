@@ -1,0 +1,17 @@
+/dist/
+/web/dist/
+/web/node_modules/
+/data/
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+__pycache__/
+*.pyc
+.DS_Store
+.env
+.env.*
+
+# Versioned releases and registry.json are intentionally publishable.
